@@ -1,0 +1,431 @@
+Quality of wine depending on components analysis by Francisco Schiappacasse
+========================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using
+# in your analysis in this code chunk.
+library(ggplot2)
+library(reshape2)
+library(gridExtra)
+library(GGally)
+library(memisc)
+library(tidyr)
+library(RColorBrewer)
+library(dplyr)
+library(scales)
+# Notice that the parameter "echo" was set to FALSE for this code chunk.
+# This prevents the code from displaying in the knitted HTML output.
+# You should set echo=FALSE for all code chunks in your file.
+
+
+
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Load_the_Data}
+# We Load the Data
+path = '/Users/francisco198/Desktop/Francisco/R/Databases'
+
+ww <- read.csv('/Users/francisco198/Desktop/Francisco/R/Databases/wineQualityWhites.csv')
+rw <- read.csv('/Users/francisco198/Desktop/Francisco/R/Databases/wineQualityReds.csv')
+
+#We just add the type in case we need a consolidated data frame
+ww <- transform(ww, type = 'White')
+rw <- transform(rw, type = 'Red')
+
+wines <- union_all(ww,rw) #all the wines in one table
+
+```
+
+# Univariate Plots Section
+
+We will explore each one of the variables of the wine data set. Our main focus is the quality variables, as we want to have an idea of which components of the wine affect its quality.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Univariate_Plots}
+#First I will create a plot matrix to understand the relationship between the variables
+
+qplot(x = quality, data = ww, binwidth = 1, color = 'pink',
+      main = 'Quality distribution',
+      xlab = 'Quality') +
+  theme(legend.position = "none") 
+#the quality seem to follow a normal distribution
+summary(ww$quality)
+
+
+qplot(x = alcohol, data = ww, binwidth = 0.25, color = 'pink',
+      main = 'Alcohol level distribution',
+      xlab = 'Alcohol %') +
+  theme(legend.position = "none") 
+#the quality seem to follow a normal distribution
+summary(ww$alcohol)
+
+qplot(x = density, data = ww, binwidth = 0.001, color = 'pink',
+      main = 'Density distribution',
+      xlab = 'Density g/cm3') +
+  theme(legend.position = "none") 
+#the density seem to follow a normal distribution
+summary(ww$density) #differences are very small we could adjust the scale, should be similar to water, it is influenced by alcohol level and sugar
+
+qplot(x = volatile.acidity, data = ww, color = 'pink',
+      main = 'Volatile acidity distribution', 
+      xlab = 'Volatile acidity g/dm3')+
+  theme(legend.position = "none") 
+summary(ww$volatile.acidity) #high levels can be unpleasent
+
+qplot(x = fixed.acidity, data = ww,color = 'pink',
+      main = 'Fixed acidity distribution',
+      xlab = 'Fixed acidity g/dm3')+
+  theme(legend.position = "none") 
+summary(ww$fixed.acidity)
+
+qplot(x = pH, data = ww,color = 'pink',
+      main = 'pH level distribution',
+      xlab = 'pH')+
+  theme(legend.position = "none") 
+summary(ww$pH) #should be between 3 and 4
+
+qplot(x = free.sulfur.dioxide, data = ww,color = 'pink',
+      main = 'Free sulfur dioxide distribution',
+      xlab = 'Free sulfur dioxide mg/dm3')+
+  theme(legend.position = "none") 
+summary(ww$free.sulfur.dioxide) #should be less than 50
+
+qplot(x = citric.acid, data = ww,color = 'pink',
+      main = 'Citric acid distribution',
+      xlab = 'Citric acid g/dm3')+
+  theme(legend.position = "none") 
+summary(ww$citric.acid) #adds freshness
+
+qplot(x = residual.sugar, data = ww,color = 'pink',
+      main = 'Residual sugar distribution',
+      xlab = 'Residual Sugar g/dm3')+
+  scale_x_continuous(trans = log10_trans())+
+  theme(legend.position = "none") 
+summary(ww$residual.sugar) #less than 45 so it is not considered sweet
+
+
+qplot(x = chlorides, data = ww,color = 'pink',
+      main = 'Cholorides distribution',
+      xlab = 'Chlorides g/dm3')+
+  scale_x_continuous(trans = log10_trans())+
+  theme(legend.position = "none") 
+summary(ww$chlorides) #amount of salt
+
+qplot(x = sulphates, data = ww,color = 'pink',
+      main = 'Sulphates distribution', 
+      xlab = 'Sulphates in g/dm3')+
+  scale_x_continuous(trans = log10_trans())+
+  theme(legend.position = "none") 
+summary(ww$sulphates) #can contribute to sulphur
+
+
+
+
+
+```
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+The white wines data set has 4898 observations and 13 variables
+### What is/are the main feature(s) of interest in your dataset?
+The variable of interest is quality
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+All other variables are characteristics of the wine that should influence the quality
+### Did you create any new variables from existing variables in the dataset?
+I just added the type in case I need to study the red wines
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+Most of the variables follor a normal distribution. I didn't do any operations
+
+
+# Bivariate Plots Section
+
+In this part we will go further by studying the relationship between each one of the variables. We will start with a matrix of the variables to have a quick idea of how they are related to each other.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Bivariate_Plots}
+
+ggpairs(ww, axisLabels = 'internal')
+
+
+#for correlations with quality, the most relevant seem to be the variables: alcohol, density and volatile acidity. Lets plot these
+
+ggplot(aes(x = quality, y = alcohol), data = ww)+
+  geom_point(alpha = 1/5, position = 'jitter', color = 'blue')+
+  geom_smooth(color = 'magenta', stat = 'summary', fun = median)+
+  ggtitle('Alcohol level vs Quality')+
+  xlab('Quality')+ylab('Alcohol %')
+#it seems that there is a small effect of the alcohol level with the quality result
+
+#it suggests that there could be an optimum range for alcohol level
+
+ww$alcohol.range <- cut(ww$alcohol, breaks = c(0,8,9,10,11,12,13,14,18)
+                        ,labels = c('<8','8-9','9-10','10-11','11-12',
+                                    '12-13','13-14','>14'))
+
+
+
+by(ww$quality,ww$alcohol.range, summary)
+#it seems that the best range is between 12 and 14, below 10 the quality decreases
+
+ggplot(aes(x = quality, y = density), data = ww)+
+  geom_point(alpha = 1/5, position = 'jitter', color = 'blue')+
+  geom_smooth(color = 'magenta', stat = 'summary', fun = median)+
+  ggtitle('Density vs Quality')+
+  xlab('Quality')+ylab('Density g/cm3')
+#high quality wines seem to have lower density
+
+ggplot(aes(x = quality, y = volatile.acidity), data = ww)+
+  geom_point(alpha = 1/5, position = 'jitter', color = 'blue')+
+  geom_smooth(color = 'magenta', stat = 'summary', fun = median)+
+   ggtitle('Volatile acidity vs Quality')+
+  xlab('Quality')+ylab('Volatile acidity g/dm3')
+#it should be below 0.6 for better quality scores
+
+ggplot(aes(x = quality, y = free.sulfur.dioxide), data = ww)+
+  geom_point(alpha = 1/5, position = 'jitter', color = 'blue')+
+  geom_smooth(color = 'magenta', stat = 'summary', fun = median)+
+   ggtitle('Free sulfur dioxide vs Quality')+
+  xlab('Quality')+ylab('Free sulfur dioxide mg/dm3')
+#it is not very clear if quality improves even if it is below 50 ppm
+
+ggplot(aes(x = quality, y = total.sulfur.dioxide), data = ww)+
+  geom_point(alpha = 1/5, position = 'jitter', color = 'blue')+
+  geom_smooth(color = 'magenta', stat = 'summary', fun = median)+
+  ggtitle('Total sulfur dioxide vs Quality')+
+  xlab('Quality')+ylab('Total sulfur dioxide mg/dm3')
+  #between 100 and 150
+
+ggplot(aes(x = quality, y = free.sulfur.dioxide / total.sulfur.dioxide), data = ww)+
+  geom_point(alpha = 1/5, position = 'jitter', color = 'blue')+
+  geom_smooth(color = 'magenta', stat = 'summary', fun = median)+
+  ggtitle('Sulfur dioxide ratio vs Quality')+
+  xlab('Quality')+ylab('Free sulfur dioxide/Total sulfur dioxide')
+
+
+
+ggplot(aes(x = quality, y = residual.sugar), data = ww)+
+  geom_point(alpha = 1/5, position = 'jitter', color = 'blue')+
+  geom_smooth(color = 'magenta', stat = 'summary', fun = median)+
+  ggtitle('Residual sugar vs Quality')+
+  xlab('Quality')+ylab('Residual sugar g/dm3')
+by(ww$residual.sugar,ww$quality, summary) #not very clear
+
+ggplot(aes(x = quality, y = chlorides), data = ww)+
+  geom_point(alpha = 1/5, position = 'jitter', color = 'blue')+
+  geom_smooth(color = 'magenta', stat = 'summary', fun = median)+
+  scale_y_continuous(trans = log10_trans())+
+  ggtitle('Chlorides vs Quality')+
+  xlab('Quality')+ylab('Chlorides g/dm3')
+#between -1.75 and -1.5? that is between 0.18 and 0.32
+
+ggplot(aes(x = quality, y = pH), data = ww)+
+  geom_point(alpha = 1/5, position = 'jitter', color = 'blue')+
+  scale_y_continuous(breaks = seq(2.7,3.9,0.1))+
+  geom_smooth(color = 'magenta', stat = 'summary', fun = median)+
+  ggtitle('pH vs Quality')+
+  xlab('Quality')+ylab('pH')
+
+by(ww$pH,ww$quality, summary) #maybe between 3.1 and 3.4
+
+ggplot(aes(x = quality, y = sulphates), data = ww)+
+  geom_point(alpha = 1/5, position = 'jitter', color = 'blue')+
+  geom_smooth(color = 'magenta', stat = 'summary', fun = median)+
+  ggtitle('Sulphates vs Quality')+
+  xlab('Quality')+ylab('Sulphates g/dm3')
+
+
+#other interesting relationships
+ggplot(aes(x = residual.sugar, y = density), data = ww)+
+  geom_point(alpha = 1/5)+
+  geom_smooth(method = 'lm') +
+  ggtitle('Density vs Residual sugar')+
+  xlab('Residual sugar g/dm3')+ylab('Density g/cm3')
+#less sugar, less dense
+
+ggplot(aes(x = density, y = alcohol), data = ww)+
+  geom_point(alpha = 1/5)+
+  geom_smooth(method = 'lm')+ #more alcohol, less dense
+  coord_cartesian(xlim = c(0.985,1.01))+
+   ggtitle('Alcohol level vs Density')+
+  xlab('Density g/cm3')+ylab('Alcohol %')
+
+ggplot(aes(x = fixed.acidity, y = pH), data = ww)+
+  geom_point(alpha = 1/5)+
+  geom_smooth(method = 'lm')+
+  ggtitle('pH vs Fixed acidity')+
+  xlab('Fixed acidity g/dm3')+ylab('pH')
+
+```
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+
+There is not a clear relationship between the quality variable and any of the variables. Possibly the alochol level can be useful to secure a minimum level of alcohol. Low levels of alcohol are associated with lower quality wine. There are some other interesting ranges, such as pH and chlorides. And other recommendations such as the volatile acides should be below 0.6 and the free sulphur dioxide below 50 ppm.
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+There are some relationships between alcohol-density, residual sugar - density, and fixed acidity and pH.
+
+
+### What was the strongest relationship you found?
+
+The strongest relationship is between quality and alcohol level.
+
+
+# Multivariate Plots Section
+
+In this section we will set a combination of variables and how they are related to quality. We want to find a range for the components that affect the quality.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Multivariate_Plots}
+
+p4 <- ggplot(aes(x = density, y = alcohol), data = ww)+
+  geom_point(aes(color = quality), alpha = 0.2)+
+  scale_color_gradientn(colours = colorRampPalette(c('red','green'))(100))+
+  scale_x_continuous(breaks = seq(0.97,1.01,0.005))+
+  geom_vline(xintercept = 0.9925, color = 'black')+
+  coord_cartesian(xlim = c(0.98,1.01))+
+  xlab('Density g/cm3')+ylab('Alcohol %')
+#lower density and higher alcohol level increase the quality. Density < 0.9925
+#alcohol level >12
+  
+
+p5<- ggplot(aes(x = pH, y = alcohol), data = ww)+
+  geom_point(aes(color = quality), alpha = 0.2)+
+  scale_color_gradientn(colours = colorRampPalette(c('red','green'))(100))+
+  geom_vline(xintercept = 3.1, color = 'black')+
+  geom_vline(xintercept = 3.3, color = 'black')+
+  xlab('pH')+ylab('Alcohol %')
+#you could narrow that pH level should be between 3.1 and 3.3
+
+p6 <- ggplot(aes(x = chlorides, y = density), data = ww)+
+  geom_point(aes(color = quality), alpha = 0.2)+
+  scale_color_gradientn(colours = colorRampPalette(c('red','green'))(100))+
+  scale_x_continuous(trans = log10_trans())+
+  geom_vline(xintercept = 0.02, color = 'black')+
+  geom_vline(xintercept = 0.04, color = 'black')+
+  coord_cartesian(ylim = c(0.985, 1.005))+
+  xlab('Chlorides g/dm3')+ylab('Density g/cm3')
+#chlorides should be between 0.02 and 0.04 g/dm^3
+
+
+p7<- ggplot(aes(x = free.sulfur.dioxide, y = alcohol), data = ww)+
+  geom_point(aes(color = quality), alpha = 0.2)+
+  scale_color_gradientn(colours = colorRampPalette(c('red','green'))(100))+
+  scale_x_continuous(breaks= seq(0,100,10))+
+  coord_cartesian(xlim= c(0,100))+
+  geom_vline(xintercept = 20, color = 'black')+
+  geom_vline(xintercept = 40, color = 'black')+
+  xlab('Free sulfur dioxide mg/dm3')+ylab('Alcohol %')
+#it seems that a free sulfur dioxide between 20 and 40 is best
+
+p8<- ggplot(aes(x = total.sulfur.dioxide, y = alcohol), data = ww)+
+  geom_point(aes(color = quality), alpha = 0.2)+
+  scale_color_gradientn(colours = colorRampPalette(c('red','green'))(100))+
+  scale_x_continuous(breaks= seq(0,400,25))+
+  geom_vline(xintercept = 75, color = 'black')+
+  geom_vline(xintercept = 125, color = 'black')+
+  xlab('Total sulfur dioxide mg/dm3')+ylab('Alcohol %')
+#total sulfur dioxide between 75 and 125 mg/dm^3
+
+p9 <- ggplot(aes(x = residual.sugar, y = alcohol), data = ww)+
+  geom_point(aes(color = quality), alpha = 0.2)+
+  scale_color_gradientn(colours = colorRampPalette(c('red','green'))(100))+
+  scale_x_continuous(trans = log10_trans())+
+  xlab('Residual sugar g/dm3')+ylab('Alcohol %')
+#residual sugar doesn't add value
+
+p10<- ggplot(aes(x = sulphates, y = alcohol), data = ww)+
+  geom_point(aes(color = quality), alpha = 0.2)+
+  scale_color_gradientn(colours = colorRampPalette(c('red','green'))(100))+
+  scale_x_continuous(trans = log10_trans())+
+  xlab('Sulphates g/dm3')+ylab('Alcohol %')
+#it doesn't seem to have a clear relationship
+
+#m1 <- lm(quality ~ alcohol, data = ww)
+#alcolevel = data.frame(alcohol = 12)
+#predict(m1, newdata = alcolevel)
+#mtable(m1)
+
+#lets take a subset and see how it improves
+selectionww <- subset(ww, alcohol >= 12 & density <= 0.9925 &
+                       pH >= 3.1 & pH <= 3.3 & 
+                        chlorides >= 0.02 & chlorides <= 0.04 &
+                        free.sulfur.dioxide >= 20 & free.sulfur.dioxide <= 40 &
+                        total.sulfur.dioxide >= 75 & total.sulfur.dioxide <= 125)
+
+
+
+p1 <- ggplot(aes(x = quality, y = ..count../sum(..count..)), data = ww)+
+  geom_freqpoly(binwidth = 1, color = 'orange')+
+  scale_x_continuous(breaks = seq(3,9,1))+
+  ggtitle('White wine dataset')+
+  coord_cartesian(xlim = c(3,9))+
+  xlab('Quality')+ylab('Frequency')
+
+p2 <- ggplot(aes(x = quality, y = ..count../sum(..count..)), data = selectionww)+
+  geom_freqpoly(binwidth = 1, color = 'orange')+
+  scale_x_continuous(breaks = seq(3,9,1))+
+  ggtitle('White wine selection')+
+  coord_cartesian(xlim = c(3,9))+
+  xlab('Quality')+ylab('Frequency')
+
+
+
+
+#grid.arrange(p1,p2)
+
+```
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+Alcohol is clearly the one that makes the most difference, but after that you can observe clear ranges in some variables that have a concentration of higher quality wines.
+
+### Were there any interesting or surprising interactions between features?
+For instance, Alcohol and density not also have influence on the quality, but also on each other. A higher density means a lower alcohol level.
+
+
+### OPTIONAL: Did you create any models with your dataset? Discuss the strengths and limitations of your model.
+
+<p>Just a linear regression between quality and alcohol level. It is the most influential variable, however you can use alcohol levels of 20, and the quality would be better than one with alcohol level of 14. This in reality is not true. Also the R^2 is very low.<p>
+------
+
+# Final Plots and Summary
+
+### Plot One
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_One}
+ggplot(aes(x = quality, y = alcohol), data = ww)+
+  geom_point(alpha = 1/5, position = 'jitter', color = 'blue')+
+  geom_smooth(color = 'red', stat = 'summary', fun = median)
+```
+
+### Description One
+Alcohol level has the major influence on quality. We can see that lower quality wines are mainly below 12% alcohol. 
+
+### Plot Two
+```{r echo=FALSE, Plot_Two}
+grid.arrange(p4,p5,p6,p7,p8, ncol = 1)
+```
+
+### Description Two
+Density also affects the quality. Density and alcohol are negatively correlated. It could be seen that for density levels below 0.9925, the quality improves. There are some other variables that have smaller influence, such as pH, chlorides, free sulfur dioxide and total sulfur dioxide. The best ranges for each of the variables are marked on the graph.
+
+### Plot Three
+```{r echo=FALSE, Plot_Three}
+grid.arrange(p1,p2)
+
+summary(selectionww$quality)
+summary(ww$quality)
+```
+
+### Description Three
+<p>
+I created a subset to select the best wines from the list according to the ranges found on the previous graphs. This selection includes 164 wines, the quality median is 7 (vs 6 of the whole data set), the first and third quantile also improve by one point.
+<p>
+------
+
+# Reflection
+There is not a clear way to determine the quality of a wine with all the variables. You can find some ranges for some of the variables but that doesn't assure the quality will be the best. 
+
+It could be more conclusive to determine for example ranges where you can find a majority of low quality wines. For instance, alcohol levels below 10%.
+
+Additionally, quality can be a subjective variable depending on who is the one grading the wines. This makes it more difficult to reach a conclusion of which are the optimum parameters for the best wine.
